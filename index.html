@@ -84,7 +84,8 @@
           :stroke-width="segment.primary === selectedSegment.primary ? 5 : 1" @click="select(segment)" />
       </svg>
 
-      <input type="range" min="-80" max="90" value="0" autocomplete="off" step="1" @input="onBrightnessChange" />
+      <input type="range" min="-80" max="90" value="0" autocomplete="off" step="1" @input="onBrightnessChange"
+        aria-label="Brightness" />
 
 
       <p>
