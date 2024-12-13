@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="">
+  <title>Color Wheel</title>
+  <meta name="description"
+    content="A color wheel based on the drawings by Goethe, Johann Wolfgang von from the year 1810.">
+  <link id="favicon" rel="icon" href="favicon.ico" type="image/x-icon">
+  <script defer data-domain="colorwheel.co" src="https://plausible.io/js/script.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    #app {
+      height: 100%;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      box-sizing: border-box;
+      height: 100vh;
+      transition: background-color 0.3s ease;
+      background: #fff;
+      font-family: ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+    }
+
+    .container {
+      width: 100%;
+      height: calc(100dvh - 90px);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .swatch {
+      position: sticky;
+      bottom: 0;
+      width: 100%;
+      height: 90px;
+      background: white;
+      border-top: 1px solid black;
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    .swatch-item {
+      height: 100%;
+      aspect-ratio: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 14px;
+    }
+
+    svg {
+      width: 100%;
+    }
+
+    path:hover {
+      cursor: pointer;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+
+<body @vue:mounted="mounted" v-cloak>
+  <div id="app">
+    <div class="container">
+      <svg :width="size" :height="size" viewBox="-150 -150 300 300">
+        <!-- fill paths -->
+        <path v-for="(segment, index) in segments" :key="'fill-' + index" :d="segment.path" :fill="segment.primaryColor"
+          stroke="none" @click="select(segment)" />
+
+        <!-- border paths -->
+        <path v-for="(segment, index) in segments" :key="'border-' + index" :d="segment.path" fill="none" stroke="black"
+          :stroke-width="segment.primary === selectedSegment.primary ? 5 : 1" @click="select(segment)" />
+      </svg>
+
+      <input type="range" min="-80" max="90" value="0" autocomplete="off" step="1" @input="onBrightnessChange" />
+
+
+      <p>
+        Built by <a href="https://timb.com?ref=color-wheel">timb.com</a>
+      </p>
+    </div>
+
+
+    <div class="swatch">
+      <div class="swatch-item" v-for="(item, index) in swatch" :key="index" :style="{
+        backgroundColor: item
+      }">
+        {{item}}
+      </div>
+    </div>
+  </div>
+
+  <script>
+
+  </script>
+
+  <script type="module">
+    import { createApp } from 'https://unpkg.com/petite-vue?module';
+
+    const colors = {
+      red: '#FF0000',
+      purple: '#800080',
+      blue: '#0000FF',
+      green: '#008000',
+      yellow: '#FFFF00',
+      orange: '#FFA500'
+    }
+
+    const size = 300;
+    const segments = [];
+    const segmentsData = [
+      {
+        primary: 'red',
+        primaryColor: colors.red,
+        secondary: 'green',
+        secondaryColor: colors.green,
+      },
+      {
+        primary: 'purple',
+        primaryColor: colors.purple,
+        secondary: 'yellow',
+        secondaryColor: colors.yellow,
+      },
+      {
+        primary: 'blue',
+        primaryColor: colors.blue,
+        secondary: 'orange',
+        secondaryColor: colors.orange,
+      },
+      {
+        primary: 'green',
+        primaryColor: colors.green,
+        secondary: 'red',
+        secondaryColor: colors.red,
+      },
+      {
+        primary: 'yellow',
+        primaryColor: colors.yellow,
+        secondary: 'purple',
+        secondaryColor: colors.purple,
+      },
+      {
+        primary: 'orange',
+        primaryColor: colors.orange,
+        secondary: 'blue',
+        secondaryColor: colors.blue,
+      },
+    ];
+
+    let swatch = [];
+    let selectedSegment = {};
+
+    function select(segment) {
+      const colorsBetween = this.interpolateColors(segment.primaryColor, segment.secondaryColor, 10);
+
+      this.swatch = colorsBetween;
+      this.selectedSegment = segment;
+    }
+
+    function onBrightnessChange(event) {
+      const value = parseInt(event.target.value)
+
+      for (const item of this.segments) {
+        item.primaryColor = this.changeBrightness(colors[item.primary], value);
+        item.secondaryColor = this.changeBrightness(colors[item.secondary], value);
+      }
+
+      /** @description update the selected color to reflect brightness changes */
+      if (this.selectedSegment.primary !== undefined) {
+        this.selectedSegment.primaryColor = this.changeBrightness(colors[this.selectedSegment.primary], value);
+        this.selectedSegment.secondaryColor = this.changeBrightness(colors[this.selectedSegment.secondary], value);
+
+        this.select(this.selectedSegment)
+      }
+    }
+
+
+    /**
+ * Populates segments with calculated SVG path data.
+ *
+ * @param {Array} segments - Array of segment data containing colors.
+ * @param {number} radius - The radius of the inner circle of the ring.
+ * @param {number} thickness - The thickness of the ring.
+ * @returns {Array} - The populated segments with SVG path data.
+ */
+    function populateSegments(segments, radius, thickness) {
+      const angleStep = 360 / segments.length;
+
+      return segments.map((segment, index) => {
+        // Adjust start and end angles to start from the top (12 o'clock)
+        const startAngle = ((angleStep * index) - 120) * (Math.PI / 180); // Convert to radians
+        const endAngle = ((angleStep * (index + 1)) - 120) * (Math.PI / 180); // Convert to radians
+
+        // Calculate points for the bent rectangle
+        const innerStart = [
+          radius * Math.cos(startAngle),
+          radius * Math.sin(startAngle),
+        ];
+        const innerEnd = [
+          radius * Math.cos(endAngle),
+          radius * Math.sin(endAngle),
+        ];
+        const outerStart = [
+          (radius + thickness) * Math.cos(startAngle),
+          (radius + thickness) * Math.sin(startAngle),
+        ];
+        const outerEnd = [
+          (radius + thickness) * Math.cos(endAngle),
+          (radius + thickness) * Math.sin(endAngle),
+        ];
+
+        // Create the path `d` attribute for a bent rectangle
+        const path = `
+      M ${innerStart[0]} ${innerStart[1]}
+      L ${outerStart[0]} ${outerStart[1]}
+      A ${radius + thickness} ${radius + thickness} 0 0 1 ${outerEnd[0]} ${outerEnd[1]}
+      L ${innerEnd[0]} ${innerEnd[1]}
+      A ${radius} ${radius} 0 0 0 ${innerStart[0]} ${innerStart[1]}
+      Z
+    `.trim();
+
+        return {
+          ...segment,
+          path, // Add the SVG path
+        };
+      });
+    }
+
+
+    function hexToRgb(hex) {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result !== null
+        ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        }
+        : { r: 0, g: 0, b: 0 };
+    };
+
+    function rgbToHex(rgb) {
+      const r = rgb.r.toString(16);
+      const g = rgb.g.toString(16);
+      const b = rgb.b.toString(16);
+      return `#${r.length === 1 ? `0${r}` : r}${g.length === 1 ? `0${g}` : g}${b.length === 1 ? `0${b}` : b
+        }`;
+    };
+
+    function hsbToRgb(hsb) {
+      const h = hsb.h / 360;
+      const s = hsb.s / 100;
+      const v = hsb.b / 100;
+
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      const i = Math.floor(h * 6);
+      const f = h * 6 - i;
+      const p = v * (1 - s);
+      const q = v * (1 - f * s);
+      const t = v * (1 - (1 - f) * s);
+      switch (i % 6) {
+        case 0:
+          r = v;
+          g = t;
+          b = p;
+          break;
+        case 1:
+          r = q;
+          g = v;
+          b = p;
+          break;
+        case 2:
+          r = p;
+          g = v;
+          b = t;
+          break;
+        case 3:
+          r = p;
+          g = q;
+          b = v;
+          break;
+        case 4:
+          r = t;
+          g = p;
+          b = v;
+          break;
+        case 5:
+          r = v;
+          g = p;
+          b = q;
+          break;
+      }
+      return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+    };
+
+    export function rgbToHsb(rgb) {
+      const r = rgb.r / 255;
+      const g = rgb.g / 255;
+      const b = rgb.b / 255;
+
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const delta = max - min;
+
+      let h = 0;
+      let s = 0;
+      const v = max;
+
+      if (delta !== 0) {
+        s = delta / max;
+        switch (max) {
+          case r:
+            h = (g - b) / delta + (g < b ? 6 : 0);
+            break;
+          case g:
+            h = (b - r) / delta + 2;
+            break;
+          case b:
+            h = (r - g) / delta + 4;
+            break;
+        }
+        h /= 6;
+      }
+
+      return {
+        h: h * 360,
+        s: s * 100,
+        b: v * 100
+      };
+    };
+
+    function interpolateColors(startColor, endColor, steps) {
+      const startRGB = this.hexToRgb(startColor);
+      const endRGB = this.hexToRgb(endColor);
+
+      const colors = Array.from({ length: steps }, (_, i) => {
+        const ratio = i / (steps - 1);
+        const interpolated = {
+          r: Math.round(startRGB.r + ratio * (endRGB.r - startRGB.r)),
+          g: Math.round(startRGB.g + ratio * (endRGB.g - startRGB.g)),
+          b: Math.round(startRGB.b + ratio * (endRGB.b - startRGB.b)),
+        };
+        return rgbToHex(interpolated);
+      });
+
+      return colors;
+    }
+
+    function changeBrightness(color, brightness) {
+      const absBrightness = Math.abs(brightness);
+      return this.blendColor(color, brightness >= 0 ? '#ffffff' : '#000000', absBrightness);
+    };
+
+    function blendValue(value1, value2, ratio) {
+      return (value1 * (100 - ratio) + value2 * ratio) * 0.01;
+    };
+
+    function blendColor(color1, color2, ratio) {
+      const rgbColors = [this.hexToRgb(color1), this.hexToRgb(color2)];
+      const hsvColors = [this.rgbToHsb(rgbColors[0]), this.rgbToHsb(rgbColors[1])];
+      const fixedColors = [hsvColors[0], hsvColors[1]];
+      if (fixedColors[0].s === 0) {
+        fixedColors[0].h = fixedColors[1].h;
+      }
+      if (fixedColors[1].s === 0) {
+        fixedColors[1].h = fixedColors[0].h;
+      }
+      if (fixedColors[0].b === 0) {
+        fixedColors[0].s = 100;
+      }
+      if (fixedColors[1].b === 0) {
+        fixedColors[1].s = 100;
+      }
+      const blendHsv = {
+        h: this.blendValue(fixedColors[0].h, fixedColors[1].h, ratio),
+        s: this.blendValue(fixedColors[0].s, fixedColors[1].s, ratio),
+        b: this.blendValue(fixedColors[0].b, fixedColors[1].b, ratio)
+      };
+      const blendRgb = this.hsbToRgb(blendHsv);
+      return this.rgbToHex(blendRgb);
+    };
+
+    createApp({
+      segments,
+      segmentsData,
+      size,
+      swatch,
+      selectedSegment,
+      select,
+      interpolateColors,
+      populateSegments,
+      onBrightnessChange,
+      hexToRgb,
+      rgbToHex,
+      hsbToRgb,
+      rgbToHsb,
+      blendColor,
+      blendValue,
+      changeBrightness,
+      mounted() {
+        this.segments = this.populateSegments(this.segmentsData, 100, 40);
+        this.select(this.segments[0])
+      },
+    }).mount();
+  </script>
+</body>
+
+</html>
